@@ -1,9 +1,11 @@
 const express = require("express");
 const app = express();
-const data = require('./models/data.js');
+const db = require('./models/data.js');
+const bodyParser = require('body-parser');
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
 
-var history = []
-var machine = data;
+var history = [];
 
 function currentDate(){
     var currentdatetime = new Date();
@@ -16,9 +18,8 @@ function currentDate(){
     return currentdatetime;
 }
 function addToHistory(item){
-    //few way to copy item to another variable without copying the reference
     var localItem = JSON.parse(JSON.stringify(item));
-    localItem["quantity"] = 1
+    localItem["quantity"] = 1;
     localItem["saletime"] = currentDate();
     history.push(localItem);
 }
@@ -31,21 +32,20 @@ function sale(item, inventory){
 }
 
 app.get("/api/customer/items", (req,res)=>{
-    var obj = {"status": "success", "data":machine["data"]};
+    var obj = {"status": "success", "data":db["data"]};
     res.json(obj);
 })
 
 app.post("/api/customer/items/:itemid/purchases", (req, res)=>{
     var itemid = parseInt(req.params.itemid, 10) - 1;
-    var selecteditem = data["data"][itemid];
-    if (machine["money"] >= selecteditem["cost"] & selecteditem["quantity"] > 0){
-        machine = sale(selecteditem, machine);
-        console.log(history);
-        return res.json({"status": "success", "data": machine})
-    } else if(machine["money"] < selecteditem["cost"]){
+    var selecteditem = db["data"][itemid];
+    if (db["money"] >= selecteditem["cost"] & selecteditem["quantity"] > 0){
+        sale(selecteditem, db);
+        return res.json({"status": "success", "data": history[history.length-1]})
+    } else if(db["money"] < selecteditem["cost"]){
         var obj = {"status": "fail",
                 "data": {
-                    "money_given": machine['money'],
+                    "money_given": db['money'],
                     "money_required": selecteditem["cost"]
                     }
                 }
@@ -53,26 +53,48 @@ app.post("/api/customer/items/:itemid/purchases", (req, res)=>{
     } else {
        var obj = {"status": "fail",
                 "data": {
-                    "quantity": machine["quantity"]
+                    "description": db["description"],
+                    "quantity": db["quantity"]
                     }
                 } 
         return res.json(obj);
     }
     
 })
+app.get("/api/vendor/purchases", (req,res)=>{
+    console.log(history);
+    var obj = {"status": "success", "data":history}
+    res.json(obj);
+});
 
+app.get("/api/vendor/money", (req, res)=>{
+    var money_given = 0;
+    for (var i = 0; i< history.length; i++){
+        money_given += history[i]["cost"];
+    }
+    var obj = {"status": "success", "data": {
+    "money_given": money_given+db["money"]
+    }}
+    res.json(obj);                
+})
+
+app.post("/api/vendor/items", (req, res)=>{
+    db["data"].push(req.body);
+    console.log(req.body);
+    res.json({"status":"success", "data": req.body});
+})
+app.put("/api/vendor/items/:itemId", (req, res)=>{
+    var value = parseInt(req.params.itemId -1, 10)
+    var obj= db["data"][value];
+    obj = {"id": req.body.id,
+        "description":req.body.description,
+        "cost": req.body.cost,
+        "quantity": req.body.quantity};
+    db["data"].splice(value,1, obj);
+    res.json({"status": "success", "data":db}); 
+})
 //delete before turning in
 app.listen(3000, (req, res)=>{
     console.log("port", 3000)
 })
 module.exports = app;
-
-
-
-
-
-// POST /api/customer/items/:itemId/purchases - purchase an item
-// GET /api/vendor/purchases - get a list of all purchases with their item and date/time
-// GET /api/vendor/money - get a total amount of money accepted by the machine
-// POST /api/vendor/items - add a new item not previously existing in the machine
-// PUT /api/vendor/items/:itemId - update item quantity, description, and cost

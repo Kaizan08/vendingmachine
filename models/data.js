@@ -60,5 +60,5 @@ module.exports = {
       "cost": 35,
       "quantity": 9
     }
-  ], money: 150
+  ], "money": 150
 }

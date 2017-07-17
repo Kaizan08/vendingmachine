@@ -14,6 +14,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "body-parser": "^1.17.2",
     "chia": "0.0.1",
     "express": "^4.15.3",
     "mocha": "^3.4.2",
